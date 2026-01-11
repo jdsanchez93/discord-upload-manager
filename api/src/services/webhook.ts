@@ -52,6 +52,7 @@ export async function createWebhook(
     webhookId,
     name: request.name,
     webhookUrl: request.webhookUrl,
+    serverName: request.serverName,
     channelName: request.channelName,
     createdAt,
   };

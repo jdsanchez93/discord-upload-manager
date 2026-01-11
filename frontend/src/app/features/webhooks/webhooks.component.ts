@@ -44,6 +44,16 @@ import { Webhook } from '../../shared/models/webhook.model';
             />
           </div>
           <div class="form-group">
+            <label for="serverName">Server Name (optional)</label>
+            <input
+              id="serverName"
+              type="text"
+              [(ngModel)]="newWebhook.serverName"
+              name="serverName"
+              placeholder="e.g. My Discord Server"
+            />
+          </div>
+          <div class="form-group">
             <label for="channelName">Channel Name (optional)</label>
             <input
               id="channelName"
@@ -67,6 +77,7 @@ import { Webhook } from '../../shared/models/webhook.model';
         <div class="card webhook-card" *ngFor="let webhook of webhooks()">
           <div class="webhook-info">
             <h4>{{ webhook.name }}</h4>
+            <p class="server-name" *ngIf="webhook.serverName">{{ webhook.serverName }}</p>
             <p class="channel-name" *ngIf="webhook.channelName">{{ webhook.channelName }}</p>
             <p class="webhook-url">{{ maskWebhookUrl(webhook.webhookUrl) }}</p>
             <p class="created-at">Added {{ formatDate(webhook.createdAt) }}</p>
@@ -136,6 +147,11 @@ import { Webhook } from '../../shared/models/webhook.model';
         color: var(--text-secondary);
       }
 
+      .server-name {
+        color: var(--primary-color);
+        margin-bottom: 4px;
+      }
+
       .channel-name {
         color: var(--primary-color);
         margin-bottom: 4px;
@@ -172,6 +188,7 @@ export class WebhooksComponent implements OnInit {
   newWebhook = {
     name: '',
     webhookUrl: '',
+    serverName: '',
     channelName: ''
   };
 
@@ -200,6 +217,7 @@ export class WebhooksComponent implements OnInit {
     this.api.createWebhook({
       name: this.newWebhook.name,
       webhookUrl: this.newWebhook.webhookUrl,
+      serverName: this.newWebhook.serverName || undefined,
       channelName: this.newWebhook.channelName || undefined
     }).subscribe({
       next: (webhook) => {
@@ -232,7 +250,7 @@ export class WebhooksComponent implements OnInit {
 
   cancelAdd() {
     this.showAddForm = false;
-    this.newWebhook = { name: '', webhookUrl: '', channelName: '' };
+    this.newWebhook = { name: '', webhookUrl: '', serverName: '', channelName: '' };
   }
 
   maskWebhookUrl(url: string): string {
