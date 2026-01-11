@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
 import { StorageStack } from '../lib/storage-stack';
-import { ApiStack } from '../lib/api-stack';
-import { FrontendStack } from '../lib/frontend-stack';
+import { AppStack } from '../lib/app-stack';
 
 const app = new cdk.App();
 
@@ -15,11 +14,12 @@ const env = {
   region: process.env.CDK_DEFAULT_REGION || 'us-east-1',
 };
 
-// Context values (only used for prod)
-const filesDomainName = app.node.tryGetContext('filesDomainName');
-const appDomainName = app.node.tryGetContext('appDomainName');
-const auth0Domain = app.node.tryGetContext('auth0Domain');
-const auth0Audience = app.node.tryGetContext('auth0Audience');
+// Stage-specific config from cdk.json, with CLI overrides
+const stageConfig = app.node.tryGetContext(stage) || {};
+const filesDomainName = app.node.tryGetContext('filesDomainName') || stageConfig.filesDomainName;
+const appDomainName = app.node.tryGetContext('appDomainName') || stageConfig.appDomainName;
+const auth0Domain = app.node.tryGetContext('auth0Domain') || stageConfig.auth0Domain;
+const auth0Audience = app.node.tryGetContext('auth0Audience') || stageConfig.auth0Audience;
 
 // Storage Stack (both dev and prod)
 const storageStack = new StorageStack(app, `${Stage}-StorageStack`, {
@@ -48,10 +48,11 @@ new cdk.CfnOutput(storageStack, 'CloudFrontDomain', {
   description: 'CloudFront domain for file access',
 });
 
-// API and Frontend stacks (prod only)
+// App Stack - combined frontend + API (prod only)
 if (stage === 'prod') {
-  const apiStack = new ApiStack(app, `${Stage}-ApiStack`, {
+  const appStack = new AppStack(app, `${Stage}-AppStack`, {
     env,
+    appDomainName,
     filesTable: storageStack.filesTable,
     webhooksTable: storageStack.webhooksTable,
     uploadBucket: storageStack.uploadBucket,
@@ -60,20 +61,9 @@ if (stage === 'prod') {
     auth0Audience,
   });
 
-  const frontendStack = new FrontendStack(app, `${Stage}-FrontendStack`, {
-    env,
-    appDomainName,
-    apiUrl: apiStack.apiUrl,
-  });
-
-  new cdk.CfnOutput(apiStack, 'ApiEndpoint', {
-    value: apiStack.apiUrl,
-    description: 'API Gateway endpoint URL',
-  });
-
-  new cdk.CfnOutput(frontendStack, 'FrontendUrl', {
-    value: frontendStack.distributionDomain,
-    description: 'Frontend CloudFront distribution domain',
+  new cdk.CfnOutput(appStack, 'AppUrl', {
+    value: appStack.distributionDomain,
+    description: 'Application URL',
   });
 }
 

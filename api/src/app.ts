@@ -6,7 +6,7 @@ import webhooks from './routes/webhooks.js';
 import files from './routes/files.js';
 
 export function createApp() {
-    const app = new Hono();
+    const app = new Hono().basePath('/api');
 
     // Middleware
     app.use('*', logger());

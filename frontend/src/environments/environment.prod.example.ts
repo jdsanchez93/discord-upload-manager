@@ -1,6 +1,6 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api.example.com', // Replace with your API Gateway URL
+  apiUrl: '/api', // Same-origin via CloudFront path-based routing
   auth0: {
     domain: 'YOUR_AUTH0_DOMAIN',
     clientId: 'YOUR_AUTH0_CLIENT_ID',
