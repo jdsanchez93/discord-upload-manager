@@ -55,13 +55,16 @@ import { Webhook } from '../../shared/models/webhook.model';
           </div>
           <div class="form-group">
             <label for="channelName">Channel Name (optional)</label>
-            <input
-              id="channelName"
-              type="text"
-              [(ngModel)]="newWebhook.channelName"
-              name="channelName"
-              placeholder="e.g., #photos"
-            />
+            <div class="input-group">
+              <span class="input-prefix">#</span>
+              <input
+                id="channelName"
+                type="text"
+                [(ngModel)]="newWebhook.channelName"
+                name="channelName"
+                placeholder="photos"
+              />
+            </div>
           </div>
           <div class="form-actions">
             <button type="button" class="secondary" (click)="cancelAdd()">Cancel</button>
@@ -77,8 +80,9 @@ import { Webhook } from '../../shared/models/webhook.model';
         <div class="card webhook-card" *ngFor="let webhook of webhooks()">
           <div class="webhook-info">
             <h4>{{ webhook.name }}</h4>
-            <p class="server-name" *ngIf="webhook.serverName">{{ webhook.serverName }}</p>
-            <p class="channel-name" *ngIf="webhook.channelName">{{ webhook.channelName }}</p>
+            <p class="location" *ngIf="webhook.serverName || webhook.channelName">
+              {{ formatLocation(webhook.serverName, webhook.channelName) }}
+            </p>
             <p class="webhook-url">{{ maskWebhookUrl(webhook.webhookUrl) }}</p>
             <p class="created-at">Added {{ formatDate(webhook.createdAt) }}</p>
           </div>
@@ -123,6 +127,28 @@ import { Webhook } from '../../shared/models/webhook.model';
       margin-top: 16px;
     }
 
+    .input-group {
+      display: flex;
+      align-items: stretch;
+    }
+
+    .input-prefix {
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      background: var(--bg-secondary, #f5f5f5);
+      border: 1px solid var(--border-color, #ddd);
+      border-right: none;
+      border-radius: 4px 0 0 4px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .input-group input {
+      border-radius: 0 4px 4px 0;
+      flex: 1;
+    }
+
     .webhooks-list {
       display: flex;
       flex-direction: column;
@@ -147,12 +173,7 @@ import { Webhook } from '../../shared/models/webhook.model';
         color: var(--text-secondary);
       }
 
-      .server-name {
-        color: var(--primary-color);
-        margin-bottom: 4px;
-      }
-
-      .channel-name {
+      .location {
         color: var(--primary-color);
         margin-bottom: 4px;
       }
@@ -261,5 +282,13 @@ export class WebhooksComponent implements OnInit {
 
   formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString();
+  }
+
+  formatLocation(serverName?: string, channelName?: string): string {
+    const channel = channelName ? `#${channelName.replace(/^#/, '')}` : '';
+    if (serverName && channel) {
+      return `${serverName} > ${channel}`;
+    }
+    return serverName || channel;
   }
 }
