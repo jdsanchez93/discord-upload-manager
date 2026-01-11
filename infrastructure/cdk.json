@@ -50,6 +50,13 @@
     "@aws-cdk/aws-efs:denyAnonymousAccess": true,
     "@aws-cdk/aws-efs:mountTargetOrderInsensitiveLogicalId": true,
     "@aws-cdk/aws-lambda:recognizeVersionProps": true,
-    "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true
+    "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true,
+
+    "prod": {
+      "appDomainName": "uploads.jd-sanchez.com",
+      "filesDomainName": "files.jd-sanchez.com",
+      "auth0Domain": "auth0.jd-sanchez.com",
+      "auth0Audience": "uploads.jd-sanchez.com/api"
+    }
   }
 }
