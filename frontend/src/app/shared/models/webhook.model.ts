@@ -3,6 +3,7 @@ export interface Webhook {
   webhookId: string;
   name: string;
   webhookUrl: string;
+  serverName?: string;
   channelName?: string;
   createdAt: string;
 }
@@ -10,5 +11,6 @@ export interface Webhook {
 export interface CreateWebhookRequest {
   name: string;
   webhookUrl: string;
+  serverName?: string;
   channelName?: string;
 }
