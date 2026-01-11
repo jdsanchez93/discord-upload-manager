@@ -7,6 +7,7 @@ import { Webhook } from '../../shared/models/webhook.model';
 
 interface UploadItem {
   file: File;
+  previewUrl?: string;
   progress: number;
   status: 'pending' | 'uploading' | 'complete' | 'error';
   error?: string;
@@ -70,8 +71,8 @@ interface UploadItem {
         <h3>Upload Queue</h3>
         <div class="queue-item" *ngFor="let item of uploadQueue(); let i = index">
           <div class="file-preview">
-            <img *ngIf="isImage(item.file)" [src]="getPreviewUrl(item.file)" alt="Preview" />
-            <div *ngIf="!isImage(item.file)" class="video-icon">
+            <img *ngIf="item.previewUrl" [src]="item.previewUrl" alt="Preview" />
+            <div *ngIf="!item.previewUrl" class="video-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M8 5v14l11-7z"/>
               </svg>
@@ -345,6 +346,7 @@ export class UploadComponent implements OnInit {
     const validFiles = files.filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
     const newItems: UploadItem[] = validFiles.map(file => ({
       file,
+      previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
       progress: 0,
       status: 'pending' as const
     }));
@@ -352,6 +354,10 @@ export class UploadComponent implements OnInit {
   }
 
   removeFromQueue(index: number) {
+    const item = this.uploadQueue()[index];
+    if (item?.previewUrl) {
+      URL.revokeObjectURL(item.previewUrl);
+    }
     this.uploadQueue.update(queue => queue.filter((_, i) => i !== index));
   }
 
@@ -438,14 +444,6 @@ export class UploadComponent implements OnInit {
       xhr.onerror = () => reject(new Error('Network error'));
       xhr.send(file);
     });
-  }
-
-  isImage(file: File): boolean {
-    return file.type.startsWith('image/');
-  }
-
-  getPreviewUrl(file: File): string {
-    return URL.createObjectURL(file);
   }
 
   formatFileSize(bytes: number): string {
