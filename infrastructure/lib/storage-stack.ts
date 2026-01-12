@@ -59,6 +59,13 @@ export class StorageStack extends cdk.Stack {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
+    // GSI for looking up files by fileId (used by webhook Lambda)
+    this.filesTable.addGlobalSecondaryIndex({
+      indexName: 'fileId-index',
+      partitionKey: { name: 'fileId', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
     // DynamoDB table for webhooks
     this.webhooksTable = new dynamodb.Table(this, 'WebhooksTable', {
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
