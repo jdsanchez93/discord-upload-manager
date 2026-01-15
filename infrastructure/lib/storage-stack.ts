@@ -32,7 +32,12 @@ export class StorageStack extends cdk.Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
       cors: [
         {
-          allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.POST],
+          allowedMethods: [
+            s3.HttpMethods.GET,
+            s3.HttpMethods.HEAD,
+            s3.HttpMethods.PUT,
+            s3.HttpMethods.POST,
+          ],
           allowedOrigins: ['*'],
           allowedHeaders: ['*'],
           exposedHeaders: ['ETag'],
