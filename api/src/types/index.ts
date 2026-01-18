@@ -43,3 +43,45 @@ export interface UploadUrlResponse {
   fileId: string;
   s3Key: string;
 }
+
+// Multipart upload types
+export interface InitiateUploadRequest {
+  filename: string;
+  webhookId: string;
+  contentType: string;
+  size: number;
+}
+
+export interface InitiateUploadResponse {
+  uploadId: string;
+  fileId: string;
+  s3Key: string;
+}
+
+export interface PartUrlRequest {
+  uploadId: string;
+  s3Key: string;
+  partNumber: number;
+}
+
+export interface PartUrlResponse {
+  url: string;
+  partNumber: number;
+}
+
+export interface UploadPart {
+  partNumber: number;
+  etag: string;
+}
+
+export interface CompleteUploadRequest {
+  uploadId: string;
+  s3Key: string;
+  fileId: string;
+  parts: UploadPart[];
+}
+
+export interface AbortUploadRequest {
+  uploadId: string;
+  s3Key: string;
+}

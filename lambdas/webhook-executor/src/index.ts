@@ -1,6 +1,6 @@
 import { S3Event, S3Handler } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
@@ -93,26 +93,12 @@ export const handler: S3Handler = async (event: S3Event) => {
 };
 
 async function findFileByFileId(fileId: string): Promise<FileRecord | null> {
-  // Since we don't have a GSI on fileId alone, we need to look this up differently
-  // The file record should have been created when the presigned URL was generated
-  // For now, we'll scan - in production, consider adding a GSI or passing userId in metadata
-
-  // Actually, let's use a different approach: store pending uploads in a separate structure
-  // or include the userId in the S3 key metadata during presigned URL generation
-
-  // For this implementation, we'll assume the file record exists with status 'uploading'
-  // and we can query by the fileId GSI (which we should add)
-
-  // Simplified: query the files table GSI by fileId
-  // Since we don't have this GSI, let's use a workaround - store fileId -> userId mapping
-
-  const { DynamoDBClient } = await import('@aws-sdk/client-dynamodb');
-  const { ScanCommand } = await import('@aws-sdk/lib-dynamodb');
-
-  const scanResult = await docClient.send(
-    new ScanCommand({
+  // Use the fileId-index GSI for efficient lookup
+  const result = await docClient.send(
+    new QueryCommand({
       TableName: FILES_TABLE_NAME,
-      FilterExpression: 'fileId = :fileId',
+      IndexName: 'fileId-index',
+      KeyConditionExpression: 'fileId = :fileId',
       ExpressionAttributeValues: {
         ':fileId': fileId,
       },
@@ -120,11 +106,7 @@ async function findFileByFileId(fileId: string): Promise<FileRecord | null> {
     })
   );
 
-  if (scanResult.Items && scanResult.Items.length > 0) {
-    return scanResult.Items[0] as FileRecord;
-  }
-
-  return null;
+  return (result.Items?.[0] as FileRecord) ?? null;
 }
 
 async function getWebhook(userId: string, webhookId: string): Promise<WebhookRecord | null> {

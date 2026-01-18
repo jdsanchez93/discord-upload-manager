@@ -32,7 +32,12 @@ export class StorageStack extends cdk.Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
       cors: [
         {
-          allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.POST],
+          allowedMethods: [
+            s3.HttpMethods.GET,
+            s3.HttpMethods.HEAD,
+            s3.HttpMethods.PUT,
+            s3.HttpMethods.POST,
+          ],
           allowedOrigins: ['*'],
           allowedHeaders: ['*'],
           exposedHeaders: ['ETag'],
@@ -56,6 +61,13 @@ export class StorageStack extends cdk.Stack {
       indexName: 'webhookId-index',
       partitionKey: { name: 'webhookId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // GSI for looking up files by fileId (used by webhook Lambda)
+    this.filesTable.addGlobalSecondaryIndex({
+      indexName: 'fileId-index',
+      partitionKey: { name: 'fileId', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     });
 

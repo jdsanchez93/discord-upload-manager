@@ -1,8 +1,12 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpEventType } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { firstValueFrom, lastValueFrom } from 'rxjs';
+import { catchError, tap } from 'rxjs/operators';
 import { ApiService } from '../../core/services/api.service';
+import { MultipartUploadService } from '../../core/services/multipart-upload.service';
 import { Webhook } from '../../shared/models/webhook.model';
 
 interface UploadItem {
@@ -284,6 +288,7 @@ interface UploadItem {
 })
 export class UploadComponent implements OnInit {
   private api = inject(ApiService);
+  private multipartUpload = inject(MultipartUploadService);
   private router = inject(Router);
 
   webhooks = signal<Webhook[]>([]);
@@ -382,24 +387,35 @@ export class UploadComponent implements OnInit {
           return newQueue;
         });
 
-        // Get presigned URL
-        const response = await this.api.getUploadUrl({
-          filename: item.file.name,
-          webhookId: this.selectedWebhookId,
-          contentType: item.file.type,
-          size: item.file.size
-        }).toPromise();
-
-        if (!response) throw new Error('Failed to get upload URL');
-
-        // Upload to S3
-        await this.uploadToS3(response.uploadUrl, item.file, (progress) => {
+        const updateProgress = (progress: number) => {
           this.uploadQueue.update(queue => {
             const newQueue = [...queue];
             newQueue[i] = { ...newQueue[i], progress };
             return newQueue;
           });
-        });
+        };
+
+        // Check if file needs multipart upload (>50MB)
+        if (this.multipartUpload.needsMultipart(item.file)) {
+          // Use multipart upload for large files
+          await this.multipartUpload.upload(
+            item.file,
+            this.selectedWebhookId,
+            updateProgress
+          );
+        } else {
+          // Use single PUT upload for small files
+          const response = await firstValueFrom(
+            this.api.getUploadUrl({
+              filename: item.file.name,
+              webhookId: this.selectedWebhookId,
+              contentType: item.file.type || 'application/octet-stream',
+              size: item.file.size,
+            })
+          );
+
+          await this.uploadToS3(response.uploadUrl, item.file, updateProgress);
+        }
 
         // Mark as complete
         this.uploadQueue.update(queue => {
@@ -421,28 +437,22 @@ export class UploadComponent implements OnInit {
   }
 
   private uploadToS3(url: string, file: File, onProgress: (progress: number) => void): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('PUT', url);
-      xhr.setRequestHeader('Content-Type', file.type);
-
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
+    const upload$ = this.api.uploadToS3(url, file).pipe(
+      tap(event => {
+        if (event.type === HttpEventType.UploadProgress && event.total) {
           const progress = Math.round((event.loaded / event.total) * 100);
           onProgress(progress);
         }
-      };
+      }),
+      catchError(err => {
+        onProgress(0);
+        console.error('S3 upload error:', err);
+        throw err;
+      })
+    );
 
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve();
-        } else {
-          reject(new Error(`Upload failed: ${xhr.status}`));
-        }
-      };
-
-      xhr.onerror = () => reject(new Error('Network error'));
-      xhr.send(file);
+    return lastValueFrom(upload$).then(() => {
+      onProgress(100);
     });
   }
 
