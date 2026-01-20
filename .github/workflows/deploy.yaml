@@ -32,6 +32,9 @@ jobs:
         working-directory: frontend
 
       - run: npm ci
+        working-directory: api
+
+      - run: npm ci
         working-directory: infrastructure
 
       - run: npx cdk deploy --all -c stage=prod --require-approval never
