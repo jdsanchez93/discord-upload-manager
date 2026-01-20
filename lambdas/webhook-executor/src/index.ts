@@ -132,13 +132,15 @@ async function executeDiscordWebhook(
     // Add wait=true to get the message ID back
     const urlWithWait = `${webhookUrl}?wait=true`;
 
+    const maskedLink = `[${filename}](${fileUrl})`;
+
     const response = await fetch(urlWithWait, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        content: fileUrl,
+        content: maskedLink,
         // Discord will automatically embed the image/video from the URL
       }),
     });
