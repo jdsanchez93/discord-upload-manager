@@ -8,10 +8,7 @@ cdk.out/
 
 # Angular
 .angular/
-**/environments/environment.ts
-**/environments/environment.prod.ts
-!**/environments/environment.example.ts
-!**/environments/environment.prod.example.ts
+**/environments/environment.development.ts
 
 # TypeScript
 *.tsbuildinfo
