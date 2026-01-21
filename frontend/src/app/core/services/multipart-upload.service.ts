@@ -95,8 +95,25 @@ export class MultipartUploadService {
     onProgress: (progress: number) => void
   ): Promise<UploadPart[]> {
     const results: UploadPart[] = [];
-    let completedCount = 0;
     let taskIndex = 0;
+
+    // Track byte-level progress for each part
+    const partProgress = new Map<number, { loaded: number; total: number }>();
+    const totalBytes = partTasks.reduce((sum, task) => sum + task.chunk.size, 0);
+
+    // Initialize progress tracking for all parts
+    for (const task of partTasks) {
+      partProgress.set(task.partNumber, { loaded: 0, total: task.chunk.size });
+    }
+
+    // Aggregate progress across all parts
+    const updateTotalProgress = (): void => {
+      let totalLoaded = 0;
+      for (const progress of partProgress.values()) {
+        totalLoaded += progress.loaded;
+      }
+      onProgress(Math.round((totalLoaded / totalBytes) * 100));
+    };
 
     // Worker function that processes tasks from the queue
     const worker = async (): Promise<void> => {
@@ -108,12 +125,14 @@ export class MultipartUploadService {
           uploadId,
           s3Key,
           task.partNumber,
-          task.chunk
+          task.chunk,
+          (loaded: number) => {
+            partProgress.set(task.partNumber, { loaded, total: task.chunk.size });
+            updateTotalProgress();
+          }
         );
 
         results.push({ partNumber: task.partNumber, etag });
-        completedCount++;
-        onProgress(Math.round((completedCount / totalParts) * 100));
       }
     };
 
@@ -136,13 +155,18 @@ export class MultipartUploadService {
     uploadId: string,
     s3Key: string,
     partNumber: number,
-    chunk: Blob
+    chunk: Blob,
+    onPartProgress?: (loaded: number) => void
   ): Promise<string> {
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
       try {
-        return await this.uploadPart(uploadId, s3Key, partNumber, chunk);
+        // Reset progress on retry
+        if (attempt > 1 && onPartProgress) {
+          onPartProgress(0);
+        }
+        return await this.uploadPart(uploadId, s3Key, partNumber, chunk, onPartProgress);
       } catch (error) {
         lastError = error as Error;
         console.warn(
@@ -164,7 +188,8 @@ export class MultipartUploadService {
     uploadId: string,
     s3Key: string,
     partNumber: number,
-    chunk: Blob
+    chunk: Blob,
+    onPartProgress?: (loaded: number) => void
   ): Promise<string> {
     // Get presigned URL for this part
     const { url } = await firstValueFrom(
@@ -175,7 +200,9 @@ export class MultipartUploadService {
     return new Promise<string>((resolve, reject) => {
       this.api.uploadPart(url, chunk).subscribe({
         next: (event) => {
-          if (event.type === HttpEventType.Response) {
+          if (event.type === HttpEventType.UploadProgress && onPartProgress) {
+            onPartProgress(event.loaded ?? 0);
+          } else if (event.type === HttpEventType.Response) {
             const response = event as HttpResponse<unknown>;
             const etag = response.headers.get('ETag');
 

@@ -1,5 +1,4 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpEventType } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -8,6 +7,13 @@ import { catchError, tap } from 'rxjs/operators';
 import { ApiService } from '../../core/services/api.service';
 import { MultipartUploadService } from '../../core/services/multipart-upload.service';
 import { Webhook } from '../../shared/models/webhook.model';
+import { SelectModule } from 'primeng/select';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { ProgressBarModule } from 'primeng/progressbar';
+import { TagModule } from 'primeng/tag';
+import { CardModule } from 'primeng/card';
+import { FloatLabelModule } from 'primeng/floatlabel';
 
 interface UploadItem {
   file: File;
@@ -17,188 +23,184 @@ interface UploadItem {
   error?: string;
 }
 
+interface WebhookOption {
+  label: string;
+  value: string;
+}
+
 @Component({
   selector: 'app-upload',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    FormsModule,
+    SelectModule,
+    ButtonModule,
+    InputTextModule,
+    ProgressBarModule,
+    TagModule,
+    CardModule,
+    FloatLabelModule
+  ],
   template: `
     <div class="container">
       <h2>Upload Files</h2>
 
       <!-- Webhook Selection -->
-      <div class="card webhook-select" *ngIf="webhooks().length > 0">
-        <label for="webhook">Select Webhook</label>
-        <select id="webhook" [(ngModel)]="selectedWebhookId">
-          <option value="">Choose a webhook...</option>
-          <option *ngFor="let webhook of webhooks()" [value]="webhook.webhookId">
-            {{ webhook.name }} {{ webhook.channelName ? '(' + webhook.channelName + ')' : '' }}
-          </option>
-        </select>
-      </div>
+      @if (webhooks().length > 0) {
+        <p-card styleClass="mb-4">
+          <div class="flex flex-column gap-3">
+            <div class="field">
+              <label for="webhook" class="block mb-2 font-medium">Select Webhook</label>
+              <p-select
+                id="webhook"
+                [options]="webhookOptions()"
+                [(ngModel)]="selectedWebhookId"
+                placeholder="Choose a webhook..."
+                styleClass="w-full"
+              />
+            </div>
 
-      <div class="no-webhooks card" *ngIf="webhooks().length === 0 && !loading()">
-        <p>No webhooks configured.</p>
-        <button class="primary" (click)="goToWebhooks()">Add Webhook</button>
-      </div>
+            @if (selectedWebhookId) {
+              <div class="field">
+                <p-floatlabel>
+                  <input
+                    pInputText
+                    id="customMessage"
+                    [(ngModel)]="customMessage"
+                    maxlength="500"
+                    class="w-full"
+                  />
+                  <label for="customMessage">Message (optional)</label>
+                </p-floatlabel>
+              </div>
+            }
+          </div>
+        </p-card>
+      }
 
-      <!-- Custom Message -->
-      <div class="card message-input" *ngIf="selectedWebhookId">
-        <label for="customMessage">Message (optional)</label>
-        <input
-          type="text"
-          id="customMessage"
-          [(ngModel)]="customMessage"
-          placeholder="Add a message to appear with your upload..."
-          maxlength="500"
-        />
-      </div>
+      @if (webhooks().length === 0 && !loading()) {
+        <div class="empty-state">
+          <i class="pi pi-link"></i>
+          <h3>No webhooks configured</h3>
+          <p>Add a webhook to start uploading files.</p>
+          <p-button
+            label="Add Webhook"
+            icon="pi pi-plus"
+            (onClick)="goToWebhooks()"
+            class="mt-3"
+          />
+        </div>
+      }
 
       <!-- Drop Zone -->
-      <div
-        class="drop-zone"
-        *ngIf="selectedWebhookId"
-        [class.drag-over]="isDragOver"
-        (dragover)="onDragOver($event)"
-        (dragleave)="onDragLeave($event)"
-        (drop)="onDrop($event)"
-        (click)="fileInput.click()"
-      >
-        <input
-          #fileInput
-          type="file"
-          multiple
-          accept="image/*,video/*"
-          (change)="onFileSelect($event)"
-          hidden
-        />
-        <div class="drop-zone-content">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          <p>Drag and drop files here, or click to select</p>
-          <span>Images and videos only</span>
+      @if (selectedWebhookId) {
+        <div
+          class="drop-zone"
+          [class.drag-over]="isDragOver"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDrop($event)"
+          (click)="fileInput.click()"
+        >
+          <input
+            #fileInput
+            type="file"
+            multiple
+            accept="image/*,video/*"
+            (change)="onFileSelect($event)"
+            hidden
+          />
+          <div class="drop-zone-content">
+            <i class="pi pi-cloud-upload" style="font-size: 3rem"></i>
+            <p>Drag and drop files here, or click to select</p>
+            <span>Images and videos only</span>
+          </div>
         </div>
-      </div>
+      }
 
       <!-- Upload Queue -->
-      <div class="upload-queue" *ngIf="uploadQueue().length > 0">
-        <h3>Upload Queue</h3>
-        <div class="queue-item" *ngFor="let item of uploadQueue(); let i = index">
-          <div class="file-preview">
-            <img *ngIf="item.previewUrl" [src]="item.previewUrl" alt="Preview" />
-            <div *ngIf="!item.previewUrl" class="video-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            </div>
+      @if (uploadQueue().length > 0) {
+        <div class="upload-queue">
+          <div class="flex justify-content-between align-items-center mb-3">
+            <h3 class="m-0">Upload Queue</h3>
+            @if (hasQueuedItems()) {
+              <p-button
+                label="Upload All"
+                icon="pi pi-upload"
+                [loading]="uploading()"
+                (onClick)="uploadAll()"
+              />
+            }
           </div>
-          <div class="file-info">
-            <span class="filename">{{ item.file.name }}</span>
-            <span class="filesize">{{ formatFileSize(item.file.size) }}</span>
-            <div class="progress-bar" *ngIf="item.status === 'uploading'">
-              <div class="progress" [style.width.%]="item.progress"></div>
-            </div>
-            <span class="status" [class]="item.status">
-              {{ item.status === 'complete' ? 'Uploaded' : item.status === 'error' ? item.error : '' }}
-            </span>
-          </div>
-          <button
-            class="remove-btn"
-            (click)="removeFromQueue(i)"
-            *ngIf="item.status === 'pending'"
-          >
-            X
-          </button>
-        </div>
-      </div>
 
-      <!-- Upload Button -->
-      <div class="upload-actions" *ngIf="uploadQueue().length > 0 && hasQueuedItems()">
-        <button class="primary" (click)="uploadAll()" [disabled]="uploading()">
-          {{ uploading() ? 'Uploading...' : 'Upload All' }}
-        </button>
-      </div>
+          <div class="flex flex-column gap-2">
+            @for (item of uploadQueue(); track item; let i = $index) {
+              <div class="queue-item">
+                <div class="file-preview">
+                  @if (item.previewUrl) {
+                    <img [src]="item.previewUrl" alt="Preview" />
+                  } @else {
+                    <i class="pi pi-play-circle" style="font-size: 1.5rem; color: var(--text-secondary)"></i>
+                  }
+                </div>
+
+                <div class="file-info">
+                  <div class="flex align-items-center gap-2 mb-1">
+                    <span class="filename">{{ item.file.name }}</span>
+                    @if (item.status === 'complete') {
+                      <p-tag value="Uploaded" severity="success" />
+                    } @else if (item.status === 'error') {
+                      <p-tag [value]="item.error || 'Error'" severity="danger" />
+                    }
+                  </div>
+                  <span class="filesize">{{ formatFileSize(item.file.size) }}</span>
+
+                  @if (item.status === 'uploading') {
+                    <div class="progress-row">
+                      <p-progressbar
+                        [value]="item.progress"
+                        [showValue]="false"
+                        [style]="{ height: '6px', flex: '1' }"
+                      />
+                      <span class="progress-text">{{ item.progress }}%</span>
+                    </div>
+                  }
+                </div>
+
+                @if (item.status === 'pending') {
+                  <p-button
+                    icon="pi pi-times"
+                    [rounded]="true"
+                    [text]="true"
+                    severity="secondary"
+                    (onClick)="removeFromQueue(i)"
+                  />
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
     </div>
   `,
   styles: [`
     h2 {
-      margin-bottom: 24px;
+      margin-bottom: 1.5rem;
     }
 
-    .webhook-select {
-      margin-bottom: 24px;
-
-      label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 500;
-      }
-
-      select {
-        width: 100%;
-        padding: 10px 12px;
-        background-color: var(--surface-color);
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        color: var(--text-primary);
-        font-size: 14px;
-
-        &:focus {
-          outline: none;
-          border-color: var(--primary-color);
-        }
-      }
-    }
-
-    .no-webhooks {
-      text-align: center;
-      padding: 32px;
-
-      p {
-        margin-bottom: 16px;
-        color: var(--text-secondary);
-      }
-    }
-
-    .message-input {
-      margin-bottom: 24px;
-
-      label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 500;
-      }
-
-      input {
-        width: 100%;
-        padding: 10px 12px;
-        background-color: var(--surface-color);
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        color: var(--text-primary);
-        font-size: 14px;
-
-        &:focus {
-          outline: none;
-          border-color: var(--primary-color);
-        }
-
-        &::placeholder {
-          color: var(--text-secondary);
-        }
-      }
+    .field {
+      display: flex;
+      flex-direction: column;
     }
 
     .drop-zone {
       border: 2px dashed var(--border-color);
       border-radius: 8px;
-      padding: 48px;
+      padding: 3rem;
       text-align: center;
       cursor: pointer;
       transition: all 0.2s;
-      margin-bottom: 24px;
+      margin-bottom: 1.5rem;
 
       &:hover, &.drag-over {
         border-color: var(--primary-color);
@@ -209,43 +211,45 @@ interface UploadItem {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 12px;
+        gap: 0.75rem;
         color: var(--text-secondary);
 
-        svg {
+        .pi {
           opacity: 0.5;
         }
 
         p {
-          font-size: 16px;
+          font-size: 1rem;
           font-weight: 500;
+          margin: 0;
         }
 
         span {
-          font-size: 14px;
+          font-size: 0.875rem;
         }
       }
     }
 
     .upload-queue {
       h3 {
-        margin-bottom: 16px;
+        font-size: 1.125rem;
       }
     }
 
     .queue-item {
       display: flex;
       align-items: center;
-      gap: 16px;
-      padding: 12px;
+      gap: 1rem;
+      padding: 0.75rem;
       background-color: var(--surface-color);
       border-radius: 8px;
-      margin-bottom: 8px;
+      border: 1px solid var(--border-color);
     }
 
     .file-preview {
       width: 60px;
       height: 60px;
+      min-width: 60px;
       border-radius: 4px;
       overflow: hidden;
       background-color: var(--background-color);
@@ -258,72 +262,67 @@ interface UploadItem {
         height: 100%;
         object-fit: cover;
       }
-
-      .video-icon {
-        color: var(--text-secondary);
-      }
     }
 
     .file-info {
       flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+      min-width: 0;
 
       .filename {
         font-weight: 500;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 300px;
+        display: block;
       }
 
       .filesize {
-        font-size: 12px;
+        font-size: 0.75rem;
         color: var(--text-secondary);
       }
 
-      .progress-bar {
-        height: 4px;
-        background-color: var(--background-color);
-        border-radius: 2px;
-        overflow: hidden;
+      .progress-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+      }
 
-        .progress {
-          height: 100%;
-          background-color: var(--primary-color);
-          transition: width 0.2s;
+      .progress-text {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        min-width: 2.5rem;
+        text-align: right;
+      }
+    }
+
+    :host ::ng-deep {
+      .p-card {
+        .p-card-body {
+          padding: 1.25rem;
         }
       }
 
-      .status {
-        font-size: 12px;
-
-        &.complete {
-          color: var(--success-color);
-        }
-
-        &.error {
-          color: var(--error-color);
+      .p-progressbar {
+        .p-progressbar-value {
+          background: var(--primary-color);
         }
       }
     }
 
-    .remove-btn {
-      background: none;
-      border: none;
-      color: var(--text-secondary);
-      cursor: pointer;
-      padding: 8px;
-
-      &:hover {
-        color: var(--error-color);
+    @media (max-width: 576px) {
+      .drop-zone {
+        padding: 2rem 1rem;
       }
-    }
 
-    .upload-actions {
-      margin-top: 24px;
-      text-align: center;
+      .queue-item {
+        flex-wrap: wrap;
+      }
+
+      .file-info {
+        order: 1;
+        width: calc(100% - 76px);
+      }
     }
   `]
 })
@@ -333,6 +332,7 @@ export class UploadComponent implements OnInit {
   private router = inject(Router);
 
   webhooks = signal<Webhook[]>([]);
+  webhookOptions = signal<WebhookOption[]>([]);
   uploadQueue = signal<UploadItem[]>([]);
   loading = signal(false);
   uploading = signal(false);
@@ -349,6 +349,12 @@ export class UploadComponent implements OnInit {
     this.api.getWebhooks().subscribe({
       next: (webhooks) => {
         this.webhooks.set(webhooks);
+        this.webhookOptions.set(
+          webhooks.map(w => ({
+            label: w.name + (w.channelName ? ` (#${w.channelName})` : ''),
+            value: w.webhookId
+          }))
+        );
         if (webhooks.length === 1) {
           this.selectedWebhookId = webhooks[0].webhookId;
         }
@@ -422,7 +428,6 @@ export class UploadComponent implements OnInit {
       if (item.status !== 'pending') continue;
 
       try {
-        // Update status to uploading
         this.uploadQueue.update(queue => {
           const newQueue = [...queue];
           newQueue[i] = { ...item, status: 'uploading', progress: 0 };
@@ -437,9 +442,7 @@ export class UploadComponent implements OnInit {
           });
         };
 
-        // Check if file needs multipart upload (>50MB)
         if (this.multipartUpload.needsMultipart(item.file)) {
-          // Use multipart upload for large files
           await this.multipartUpload.upload(
             item.file,
             this.selectedWebhookId,
@@ -447,7 +450,6 @@ export class UploadComponent implements OnInit {
             this.customMessage || undefined
           );
         } else {
-          // Use single PUT upload for small files
           const response = await firstValueFrom(
             this.api.getUploadUrl({
               filename: item.file.name,
@@ -461,7 +463,6 @@ export class UploadComponent implements OnInit {
           await this.uploadToS3(response.uploadUrl, item.file, updateProgress);
         }
 
-        // Mark as complete
         this.uploadQueue.update(queue => {
           const newQueue = [...queue];
           newQueue[i] = { ...newQueue[i], status: 'complete', progress: 100 };
