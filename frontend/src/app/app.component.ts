@@ -1,39 +1,50 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterOutlet, Router } from '@angular/router';
 import { AuthService } from '@auth0/auth0-angular';
+import { MenuItem } from 'primeng/api';
+import { MenubarModule } from 'primeng/menubar';
+import { ButtonModule } from 'primeng/button';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [CommonModule, RouterOutlet, MenubarModule, ButtonModule],
   template: `
     <div class="app-container">
-      <nav class="navbar">
-        <div class="nav-brand">
-          <h1>Discord Upload Manager</h1>
+      @if (auth.isAuthenticated$ | async) {
+        <p-menubar [model]="menuItems" styleClass="app-menubar">
+          <ng-template #start>
+            <span class="app-title">Discord Upload Manager</span>
+          </ng-template>
+          <ng-template #end>
+            <div class="flex align-items-center gap-2">
+              <span class="user-email hide-on-mobile">{{ (auth.user$ | async)?.email }}</span>
+              <p-button
+                label="Logout"
+                [outlined]="true"
+                severity="secondary"
+                size="small"
+                (onClick)="logout()"
+              />
+            </div>
+          </ng-template>
+        </p-menubar>
+      } @else {
+        <div class="login-navbar">
+          <span class="app-title">Discord Upload Manager</span>
+          <p-button
+            label="Login"
+            (onClick)="login()"
+            size="small"
+          />
         </div>
-        @if (auth.isAuthenticated$ | async) {
-          <div class="nav-links">
-            <a routerLink="/files" routerLinkActive="active">Files</a>
-            <a routerLink="/upload" routerLinkActive="active">Upload</a>
-            <a routerLink="/webhooks" routerLinkActive="active">Webhooks</a>
-          </div>
-        }
-        <div class="nav-auth">
-          @if (auth.isAuthenticated$ | async) {
-            <span class="user-email">{{ (auth.user$ | async)?.email }}</span>
-            <button class="secondary" (click)="logout()">Logout</button>
-          } @else {
-            <button class="primary" (click)="login()">Login</button>
-          }
-        </div>
-      </nav>
+      }
       <main class="main-content">
         <router-outlet></router-outlet>
       </main>
     </div>
-    `,
+  `,
   styles: [`
     .app-container {
       min-height: 100vh;
@@ -41,68 +52,85 @@ import { AuthService } from '@auth0/auth0-angular';
       flex-direction: column;
     }
 
-    .navbar {
-      background-color: var(--surface-color);
-      border-bottom: 1px solid var(--border-color);
-      padding: 16px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 24px;
-    }
-
-    .nav-brand h1 {
-      font-size: 18px;
+    .app-title {
+      font-size: 1.125rem;
       font-weight: 600;
       color: var(--text-primary);
-      margin: 0;
-    }
-
-    .nav-links {
-      display: flex;
-      gap: 24px;
-      flex: 1;
-      justify-content: center;
-
-      a {
-        color: var(--text-secondary);
-        text-decoration: none;
-        font-weight: 500;
-        padding: 8px 16px;
-        border-radius: 4px;
-        transition: all 0.2s;
-
-        &:hover {
-          color: var(--text-primary);
-          background-color: var(--surface-hover);
-        }
-
-        &.active {
-          color: var(--primary-color);
-          background-color: rgba(88, 101, 242, 0.1);
-        }
-      }
-    }
-
-    .nav-auth {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      white-space: nowrap;
     }
 
     .user-email {
       color: var(--text-secondary);
-      font-size: 14px;
+      font-size: 0.875rem;
+    }
+
+    .login-navbar {
+      background-color: var(--surface-color);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
     .main-content {
       flex: 1;
-      padding: 24px;
+      padding: 1.5rem;
+    }
+
+    :host ::ng-deep {
+      .app-menubar {
+        background-color: var(--surface-color);
+        border-color: var(--border-color);
+        border-radius: 0;
+        padding: 0.5rem 1rem;
+
+        .p-menubar-start {
+          margin-right: 1rem;
+        }
+
+        .p-menubar-button {
+          color: var(--text-primary);
+        }
+      }
+    }
+
+    @media (max-width: 768px) {
+      .main-content {
+        padding: 1rem;
+      }
+
+      .app-title {
+        font-size: 1rem;
+      }
     }
   `]
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   auth = inject(AuthService);
+  private router = inject(Router);
+
+  menuItems: MenuItem[] = [];
+
+  ngOnInit() {
+    this.menuItems = [
+      {
+        label: 'Files',
+        icon: 'pi pi-images',
+        command: () => this.router.navigate(['/files'])
+      },
+      {
+        label: 'Upload',
+        icon: 'pi pi-upload',
+        command: () => this.router.navigate(['/upload'])
+      },
+      {
+        label: 'Webhooks',
+        icon: 'pi pi-link',
+        command: () => this.router.navigate(['/webhooks'])
+      }
+    ];
+  }
 
   login() {
     this.auth.loginWithRedirect();

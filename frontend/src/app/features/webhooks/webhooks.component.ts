@@ -1,221 +1,263 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { Webhook } from '../../shared/models/webhook.model';
+import { CardModule } from 'primeng/card';
+import { ButtonModule } from 'primeng/button';
+import { DialogModule } from 'primeng/dialog';
+import { InputTextModule } from 'primeng/inputtext';
+import { FloatLabelModule } from 'primeng/floatlabel';
+import { InputGroupModule } from 'primeng/inputgroup';
+import { InputGroupAddonModule } from 'primeng/inputgroupaddon';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ConfirmationService } from 'primeng/api';
+import { SkeletonModule } from 'primeng/skeleton';
 
 @Component({
   selector: 'app-webhooks',
   standalone: true,
-  imports: [FormsModule],
+  imports: [
+    FormsModule,
+    CardModule,
+    ButtonModule,
+    DialogModule,
+    InputTextModule,
+    FloatLabelModule,
+    InputGroupModule,
+    InputGroupAddonModule,
+    ConfirmDialogModule,
+    SkeletonModule
+  ],
+  providers: [ConfirmationService],
   template: `
     <div class="container">
       <div class="page-header">
         <h2>Webhooks</h2>
-        @if (!showAddForm) {
-          <button class="primary" (click)="showAddForm = true">
-            Add Webhook
-          </button>
-        }
+        <p-button
+          label="Add Webhook"
+          icon="pi pi-plus"
+          (onClick)="showAddDialog = true"
+        />
       </div>
-    
-      <!-- Add Webhook Form -->
-      @if (showAddForm) {
-        <div class="card add-form">
-          <h3>Add New Webhook</h3>
-          <form (ngSubmit)="addWebhook()">
-            <div class="form-group">
-              <label for="name">Name</label>
+
+      <!-- Add Webhook Dialog -->
+      <p-dialog
+        header="Add New Webhook"
+        [(visible)]="showAddDialog"
+        [modal]="true"
+        [style]="{ width: '90vw', maxWidth: '500px' }"
+        [draggable]="false"
+        [resizable]="false"
+      >
+        <form (ngSubmit)="addWebhook()" class="webhook-form">
+          <div class="field">
+            <p-floatlabel>
               <input
+                pInputText
                 id="name"
-                type="text"
                 [(ngModel)]="newWebhook.name"
                 name="name"
-                placeholder="e.g., Photos Channel"
+                class="w-full"
                 required
-                />
-            </div>
-            <div class="form-group">
-              <label for="webhookUrl">Webhook URL</label>
+              />
+              <label for="name">Name</label>
+            </p-floatlabel>
+            <small class="text-secondary">e.g., Photos Channel</small>
+          </div>
+
+          <div class="field">
+            <p-floatlabel>
               <input
+                pInputText
                 id="webhookUrl"
-                type="url"
                 [(ngModel)]="newWebhook.webhookUrl"
                 name="webhookUrl"
-                placeholder="https://discord.com/api/webhooks/..."
+                class="w-full"
                 required
-                />
-            </div>
-            <div class="form-group">
-              <label for="serverName">Server Name (optional)</label>
+              />
+              <label for="webhookUrl">Webhook URL</label>
+            </p-floatlabel>
+            <small class="text-secondary">https://discord.com/api/webhooks/...</small>
+          </div>
+
+          <div class="field">
+            <p-floatlabel>
               <input
+                pInputText
                 id="serverName"
-                type="text"
                 [(ngModel)]="newWebhook.serverName"
                 name="serverName"
-                placeholder="e.g. My Discord Server"
-                />
-            </div>
-            <div class="form-group">
-              <label for="channelName">Channel Name (optional)</label>
-              <div class="input-group">
-                <span class="input-prefix">#</span>
-                <input
-                  id="channelName"
-                  type="text"
-                  [(ngModel)]="newWebhook.channelName"
-                  name="channelName"
-                  placeholder="photos"
-                  />
+                class="w-full"
+              />
+              <label for="serverName">Server Name (optional)</label>
+            </p-floatlabel>
+          </div>
+
+          <div class="field">
+            <label for="channelName" class="block mb-2 text-secondary">Channel Name (optional)</label>
+            <p-inputgroup>
+              <p-inputgroup-addon>#</p-inputgroup-addon>
+              <input
+                pInputText
+                id="channelName"
+                [(ngModel)]="newWebhook.channelName"
+                name="channelName"
+                placeholder="photos"
+              />
+            </p-inputgroup>
+          </div>
+        </form>
+
+        <ng-template #footer>
+          <div class="flex justify-content-end gap-2">
+            <p-button
+              label="Cancel"
+              [outlined]="true"
+              severity="secondary"
+              (onClick)="cancelAdd()"
+            />
+            <p-button
+              label="Add Webhook"
+              icon="pi pi-check"
+              [loading]="loading()"
+              (onClick)="addWebhook()"
+            />
+          </div>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Confirm Delete Dialog -->
+      <p-confirmDialog />
+
+      <!-- Loading State -->
+      @if (loading() && webhooks().length === 0) {
+        <div class="flex flex-column gap-3">
+          @for (i of [1, 2, 3]; track i) {
+            <p-card>
+              <div class="flex justify-content-between align-items-center">
+                <div class="flex-1">
+                  <p-skeleton width="40%" height="1.5rem" styleClass="mb-2" />
+                  <p-skeleton width="60%" height="1rem" styleClass="mb-2" />
+                  <p-skeleton width="80%" height="0.875rem" />
+                </div>
+                <p-skeleton width="80px" height="2.5rem" />
               </div>
-            </div>
-            <div class="form-actions">
-              <button type="button" class="secondary" (click)="cancelAdd()">Cancel</button>
-              <button type="submit" class="primary" [disabled]="loading()">
-                {{ loading() ? 'Adding...' : 'Add Webhook' }}
-              </button>
-            </div>
-          </form>
+            </p-card>
+          }
         </div>
       }
-    
+
       <!-- Webhooks List -->
-      <div class="webhooks-list">
-        @for (webhook of webhooks(); track webhook) {
-          <div class="card webhook-card">
-            <div class="webhook-info">
-              <h4>{{ webhook.name }}</h4>
-              @if (webhook.serverName || webhook.channelName) {
-                <p class="location">
-                  {{ formatLocation(webhook.serverName, webhook.channelName) }}
-                </p>
-              }
-              <p class="webhook-url">{{ maskWebhookUrl(webhook.webhookUrl) }}</p>
-              <p class="created-at">Added {{ formatDate(webhook.createdAt) }}</p>
+      @if (!loading() || webhooks().length > 0) {
+        <div class="flex flex-column gap-3">
+          @for (webhook of webhooks(); track webhook.webhookId) {
+            <p-card styleClass="webhook-card">
+              <div class="flex flex-column sm:flex-row justify-content-between align-items-start sm:align-items-center gap-3">
+                <div class="webhook-info flex-1">
+                  <h4 class="m-0 mb-2 text-lg">{{ webhook.name }}</h4>
+                  @if (webhook.serverName || webhook.channelName) {
+                    <p class="m-0 mb-1 text-primary">
+                      {{ formatLocation(webhook.serverName, webhook.channelName) }}
+                    </p>
+                  }
+                  <p class="m-0 mb-2 text-sm text-secondary font-mono webhook-url">
+                    {{ maskWebhookUrl(webhook.webhookUrl) }}
+                  </p>
+                  <p class="m-0 text-xs text-secondary">
+                    Added {{ formatDate(webhook.createdAt) }}
+                  </p>
+                </div>
+                <p-button
+                  label="Delete"
+                  icon="pi pi-trash"
+                  severity="danger"
+                  [outlined]="true"
+                  size="small"
+                  [loading]="loading()"
+                  (onClick)="confirmDelete(webhook)"
+                />
+              </div>
+            </p-card>
+          }
+
+          @if (webhooks().length === 0) {
+            <div class="empty-state">
+              <i class="pi pi-link"></i>
+              <h3>No webhooks configured</h3>
+              <p>Add a webhook to start uploading files to Discord.</p>
+              <p-button
+                label="Add Your First Webhook"
+                icon="pi pi-plus"
+                (onClick)="showAddDialog = true"
+                class="mt-3"
+              />
             </div>
-            <div class="webhook-actions">
-              <button class="danger" (click)="deleteWebhook(webhook)" [disabled]="loading()">
-                Delete
-              </button>
-            </div>
-          </div>
-        }
-    
-        @if (webhooks().length === 0 && !loading()) {
-          <div class="empty-state">
-            <p>No webhooks configured yet.</p>
-            <p>Add a webhook to start uploading files to Discord.</p>
-          </div>
-        }
-      </div>
+          }
+        </div>
+      }
     </div>
-    `,
+  `,
   styles: [`
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-
-      h2 {
-        margin: 0;
-      }
-    }
-
-    .add-form {
-      margin-bottom: 24px;
-
-      h3 {
-        margin-bottom: 16px;
-      }
-    }
-
-    .form-actions {
-      display: flex;
-      gap: 12px;
-      justify-content: flex-end;
-      margin-top: 16px;
-    }
-
-    .input-group {
-      display: flex;
-      align-items: stretch;
-    }
-
-    .input-prefix {
-      display: flex;
-      align-items: center;
-      padding: 0 12px;
-      background: var(--bg-secondary, #f5f5f5);
-      border: 1px solid var(--border-color, #ddd);
-      border-right: none;
-      border-radius: 4px 0 0 4px;
-      color: var(--text-secondary);
-      font-weight: 500;
-    }
-
-    .input-group input {
-      border-radius: 0 4px 4px 0;
-      flex: 1;
-    }
-
-    .webhooks-list {
+    .webhook-form {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 1.5rem;
+      padding-top: 0.5rem;
     }
 
-    .webhook-card {
+    .field {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .text-secondary {
+      color: var(--text-secondary);
+    }
+
+    .text-primary {
+      color: var(--primary-color);
+    }
+
+    .font-mono {
+      font-family: monospace;
+    }
+
+    .webhook-url {
+      word-break: break-all;
+      overflow-wrap: break-word;
     }
 
     .webhook-info {
-      h4 {
-        margin: 0 0 8px 0;
-        font-size: 16px;
-      }
-
-      p {
-        margin: 0;
-        font-size: 14px;
-        color: var(--text-secondary);
-      }
-
-      .location {
-        color: var(--primary-color);
-        margin-bottom: 4px;
-      }
-
-      .webhook-url {
-        font-family: monospace;
-        font-size: 12px;
-      }
-
-      .created-at {
-        margin-top: 8px;
-        font-size: 12px;
-      }
+      min-width: 0;
     }
 
-    .empty-state {
-      text-align: center;
-      padding: 48px;
-      color: var(--text-secondary);
+    :host ::ng-deep {
+      .webhook-card {
+        border: 1px solid var(--border-color);
 
-      p {
-        margin: 8px 0;
+        .p-card-body {
+          padding: 1rem;
+        }
+      }
+
+      .p-floatlabel {
+        width: 100%;
+      }
+
+      .p-dialog-content {
+        padding-bottom: 0;
       }
     }
   `]
 })
 export class WebhooksComponent implements OnInit {
   private api = inject(ApiService);
+  private confirmationService = inject(ConfirmationService);
 
   webhooks = signal<Webhook[]>([]);
   loading = signal(false);
-  showAddForm = false;
+  showAddDialog = false;
   newWebhook = {
     name: '',
     webhookUrl: '',
@@ -263,9 +305,17 @@ export class WebhooksComponent implements OnInit {
     });
   }
 
-  deleteWebhook(webhook: Webhook) {
-    if (!confirm(`Delete webhook "${webhook.name}"?`)) return;
+  confirmDelete(webhook: Webhook) {
+    this.confirmationService.confirm({
+      message: `Are you sure you want to delete "${webhook.name}"?`,
+      header: 'Delete Webhook',
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => this.deleteWebhook(webhook)
+    });
+  }
 
+  deleteWebhook(webhook: Webhook) {
     this.loading.set(true);
     this.api.deleteWebhook(webhook.webhookId).subscribe({
       next: () => {
@@ -280,14 +330,13 @@ export class WebhooksComponent implements OnInit {
   }
 
   cancelAdd() {
-    this.showAddForm = false;
+    this.showAddDialog = false;
     this.newWebhook = { name: '', webhookUrl: '', serverName: '', channelName: '' };
   }
 
   maskWebhookUrl(url: string): string {
-    // Show only first part of the webhook URL for security
-    const match = url.match(/^(https:\/\/discord\.com\/api\/webhooks\/\d+)\/.+$/);
-    return match ? `${match[1]}/...` : url.substring(0, 50) + '...';
+    const match = url.match(/^https:\/\/discord\.com\/api\/webhooks\/(\d+)\/.+$/);
+    return match ? `Webhook ID: ${match[1]}` : 'Invalid webhook URL';
   }
 
   formatDate(dateStr: string): string {
