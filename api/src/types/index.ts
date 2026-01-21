@@ -29,6 +29,7 @@ export interface FileRecord {
   postedAt?: string;
   cloudFrontUrl?: string;
   errorMessage?: string;
+  customMessage?: string;
 }
 
 export interface UploadUrlRequest {
@@ -36,6 +37,7 @@ export interface UploadUrlRequest {
   webhookId: string;
   contentType: string;
   size: number;
+  customMessage?: string;
 }
 
 export interface UploadUrlResponse {
@@ -50,6 +52,7 @@ export interface InitiateUploadRequest {
   webhookId: string;
   contentType: string;
   size: number;
+  customMessage?: string;
 }
 
 export interface InitiateUploadResponse {
