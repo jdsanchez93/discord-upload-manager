@@ -156,12 +156,14 @@ interface WebhookOption {
                   <span class="filesize">{{ formatFileSize(item.file.size) }}</span>
 
                   @if (item.status === 'uploading') {
-                    <p-progressbar
-                      [value]="item.progress"
-                      [showValue]="true"
-                      styleClass="mt-2"
-                      [style]="{ height: '6px' }"
-                    />
+                    <div class="progress-row">
+                      <p-progressbar
+                        [value]="item.progress"
+                        [showValue]="false"
+                        [style]="{ height: '6px', flex: '1' }"
+                      />
+                      <span class="progress-text">{{ item.progress }}%</span>
+                    </div>
                   }
                 </div>
 
@@ -277,6 +279,20 @@ interface WebhookOption {
       .filesize {
         font-size: 0.75rem;
         color: var(--text-secondary);
+      }
+
+      .progress-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+      }
+
+      .progress-text {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        min-width: 2.5rem;
+        text-align: right;
       }
     }
 
