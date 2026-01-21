@@ -13,26 +13,27 @@ import { AuthService } from '@auth0/auth0-angular';
         <div class="nav-brand">
           <h1>Discord Upload Manager</h1>
         </div>
-        <div class="nav-links" *ngIf="auth.isAuthenticated$ | async">
-          <a routerLink="/files" routerLinkActive="active">Files</a>
-          <a routerLink="/upload" routerLinkActive="active">Upload</a>
-          <a routerLink="/webhooks" routerLinkActive="active">Webhooks</a>
-        </div>
+        @if (auth.isAuthenticated$ | async) {
+          <div class="nav-links">
+            <a routerLink="/files" routerLinkActive="active">Files</a>
+            <a routerLink="/upload" routerLinkActive="active">Upload</a>
+            <a routerLink="/webhooks" routerLinkActive="active">Webhooks</a>
+          </div>
+        }
         <div class="nav-auth">
-          <ng-container *ngIf="auth.isAuthenticated$ | async; else loginBtn">
+          @if (auth.isAuthenticated$ | async) {
             <span class="user-email">{{ (auth.user$ | async)?.email }}</span>
             <button class="secondary" (click)="logout()">Logout</button>
-          </ng-container>
-          <ng-template #loginBtn>
+          } @else {
             <button class="primary" (click)="login()">Login</button>
-          </ng-template>
+          }
         </div>
       </nav>
       <main class="main-content">
         <router-outlet></router-outlet>
       </main>
     </div>
-  `,
+    `,
   styles: [`
     .app-container {
       min-height: 100vh;

@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { FileRecord } from '../../shared/models/file.model';
@@ -8,7 +8,7 @@ import { Webhook } from '../../shared/models/webhook.model';
 @Component({
   selector: 'app-files',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   template: `
     <div class="container">
       <div class="page-header">
@@ -16,81 +16,101 @@ import { Webhook } from '../../shared/models/webhook.model';
         <div class="filter">
           <select [(ngModel)]="selectedWebhookId" (ngModelChange)="loadFiles()">
             <option value="">All Webhooks</option>
-            <option *ngFor="let webhook of webhooks()" [value]="webhook.webhookId">
-              {{ webhook.name }}
-            </option>
+            @for (webhook of webhooks(); track webhook) {
+              <option [value]="webhook.webhookId">
+                {{ webhook.name }}
+              </option>
+            }
           </select>
         </div>
       </div>
-
+    
       <!-- Loading State -->
-      <div class="loading" *ngIf="loading()">
-        <p>Loading files...</p>
-      </div>
-
+      @if (loading()) {
+        <div class="loading">
+          <p>Loading files...</p>
+        </div>
+      }
+    
       <!-- Files Grid -->
-      <div class="files-grid" *ngIf="!loading() && files().length > 0">
-        <div class="file-card" *ngFor="let file of files()">
-          <div class="file-preview" (click)="openFile(file)">
-            <img *ngIf="isImage(file)" [src]="file.cloudFrontUrl" [alt]="file.filename" loading="lazy" />
-            <div *ngIf="!isImage(file)" class="video-preview">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
+      @if (!loading() && files().length > 0) {
+        <div class="files-grid">
+          @for (file of files(); track file) {
+            <div class="file-card">
+              <div class="file-preview" (click)="openFile(file)">
+                @if (isImage(file)) {
+                  <img [src]="file.cloudFrontUrl" [alt]="file.filename" loading="lazy" />
+                }
+                @if (!isImage(file)) {
+                  <div class="video-preview">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                  </div>
+                }
+                <div class="status-badge" [class]="file.status">
+                  {{ getStatusLabel(file.status) }}
+                </div>
+              </div>
+              <div class="file-info">
+                <span class="filename" [title]="file.filename">{{ file.filename }}</span>
+                <span class="metadata">
+                  {{ formatFileSize(file.size) }} - {{ formatDate(file.createdAt) }}
+                </span>
+              </div>
+              <div class="file-actions">
+                <button class="secondary" (click)="copyUrl(file)" title="Copy URL">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+                <button class="danger" (click)="deleteFile(file)" title="Delete">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div class="status-badge" [class]="file.status">
-              {{ getStatusLabel(file.status) }}
-            </div>
-          </div>
-          <div class="file-info">
-            <span class="filename" [title]="file.filename">{{ file.filename }}</span>
-            <span class="metadata">
-              {{ formatFileSize(file.size) }} - {{ formatDate(file.createdAt) }}
-            </span>
-          </div>
-          <div class="file-actions">
-            <button class="secondary" (click)="copyUrl(file)" title="Copy URL">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              </svg>
-            </button>
-            <button class="danger" (click)="deleteFile(file)" title="Delete">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-              </svg>
-            </button>
-          </div>
+          }
         </div>
-      </div>
-
+      }
+    
       <!-- Empty State -->
-      <div class="empty-state card" *ngIf="!loading() && files().length === 0">
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-          <circle cx="8.5" cy="8.5" r="1.5"/>
-          <polyline points="21 15 16 10 5 21"/>
-        </svg>
-        <h3>No files yet</h3>
-        <p>Upload some files to see them here.</p>
-      </div>
-
+      @if (!loading() && files().length === 0) {
+        <div class="empty-state card">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <h3>No files yet</h3>
+          <p>Upload some files to see them here.</p>
+        </div>
+      }
+    
       <!-- File Preview Modal -->
-      <div class="modal-backdrop" *ngIf="previewFile()" (click)="closePreview()">
-        <div class="modal-content" (click)="$event.stopPropagation()">
-          <button class="close-btn" (click)="closePreview()">X</button>
-          <img *ngIf="isImage(previewFile()!)" [src]="previewFile()!.cloudFrontUrl" [alt]="previewFile()!.filename" />
-          <video *ngIf="!isImage(previewFile()!)" [src]="previewFile()!.cloudFrontUrl" controls autoplay></video>
-          <div class="preview-info">
-            <h4>{{ previewFile()!.filename }}</h4>
-            <p>{{ formatFileSize(previewFile()!.size) }} - {{ formatDate(previewFile()!.createdAt) }}</p>
-            <a [href]="previewFile()!.cloudFrontUrl" target="_blank" class="primary">Open in new tab</a>
+      @if (previewFile()) {
+        <div class="modal-backdrop" (click)="closePreview()">
+          <div class="modal-content" (click)="$event.stopPropagation()">
+            <button class="close-btn" (click)="closePreview()">X</button>
+            @if (isImage(previewFile()!)) {
+              <img [src]="previewFile()!.cloudFrontUrl" [alt]="previewFile()!.filename" />
+            }
+            @if (!isImage(previewFile()!)) {
+              <video [src]="previewFile()!.cloudFrontUrl" controls autoplay></video>
+            }
+            <div class="preview-info">
+              <h4>{{ previewFile()!.filename }}</h4>
+              <p>{{ formatFileSize(previewFile()!.size) }} - {{ formatDate(previewFile()!.createdAt) }}</p>
+              <a [href]="previewFile()!.cloudFrontUrl" target="_blank" class="primary">Open in new tab</a>
+            </div>
           </div>
         </div>
-      </div>
+      }
     </div>
-  `,
+    `,
   styles: [`
     .page-header {
       display: flex;

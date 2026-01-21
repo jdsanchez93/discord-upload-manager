@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { Webhook } from '../../shared/models/webhook.model';
@@ -7,99 +7,109 @@ import { Webhook } from '../../shared/models/webhook.model';
 @Component({
   selector: 'app-webhooks',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   template: `
     <div class="container">
       <div class="page-header">
         <h2>Webhooks</h2>
-        <button class="primary" (click)="showAddForm = true" *ngIf="!showAddForm">
-          Add Webhook
-        </button>
+        @if (!showAddForm) {
+          <button class="primary" (click)="showAddForm = true">
+            Add Webhook
+          </button>
+        }
       </div>
-
+    
       <!-- Add Webhook Form -->
-      <div class="card add-form" *ngIf="showAddForm">
-        <h3>Add New Webhook</h3>
-        <form (ngSubmit)="addWebhook()">
-          <div class="form-group">
-            <label for="name">Name</label>
-            <input
-              id="name"
-              type="text"
-              [(ngModel)]="newWebhook.name"
-              name="name"
-              placeholder="e.g., Photos Channel"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <label for="webhookUrl">Webhook URL</label>
-            <input
-              id="webhookUrl"
-              type="url"
-              [(ngModel)]="newWebhook.webhookUrl"
-              name="webhookUrl"
-              placeholder="https://discord.com/api/webhooks/..."
-              required
-            />
-          </div>
-          <div class="form-group">
-            <label for="serverName">Server Name (optional)</label>
-            <input
-              id="serverName"
-              type="text"
-              [(ngModel)]="newWebhook.serverName"
-              name="serverName"
-              placeholder="e.g. My Discord Server"
-            />
-          </div>
-          <div class="form-group">
-            <label for="channelName">Channel Name (optional)</label>
-            <div class="input-group">
-              <span class="input-prefix">#</span>
+      @if (showAddForm) {
+        <div class="card add-form">
+          <h3>Add New Webhook</h3>
+          <form (ngSubmit)="addWebhook()">
+            <div class="form-group">
+              <label for="name">Name</label>
               <input
-                id="channelName"
+                id="name"
                 type="text"
-                [(ngModel)]="newWebhook.channelName"
-                name="channelName"
-                placeholder="photos"
-              />
+                [(ngModel)]="newWebhook.name"
+                name="name"
+                placeholder="e.g., Photos Channel"
+                required
+                />
             </div>
-          </div>
-          <div class="form-actions">
-            <button type="button" class="secondary" (click)="cancelAdd()">Cancel</button>
-            <button type="submit" class="primary" [disabled]="loading()">
-              {{ loading() ? 'Adding...' : 'Add Webhook' }}
-            </button>
-          </div>
-        </form>
-      </div>
-
+            <div class="form-group">
+              <label for="webhookUrl">Webhook URL</label>
+              <input
+                id="webhookUrl"
+                type="url"
+                [(ngModel)]="newWebhook.webhookUrl"
+                name="webhookUrl"
+                placeholder="https://discord.com/api/webhooks/..."
+                required
+                />
+            </div>
+            <div class="form-group">
+              <label for="serverName">Server Name (optional)</label>
+              <input
+                id="serverName"
+                type="text"
+                [(ngModel)]="newWebhook.serverName"
+                name="serverName"
+                placeholder="e.g. My Discord Server"
+                />
+            </div>
+            <div class="form-group">
+              <label for="channelName">Channel Name (optional)</label>
+              <div class="input-group">
+                <span class="input-prefix">#</span>
+                <input
+                  id="channelName"
+                  type="text"
+                  [(ngModel)]="newWebhook.channelName"
+                  name="channelName"
+                  placeholder="photos"
+                  />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="secondary" (click)="cancelAdd()">Cancel</button>
+              <button type="submit" class="primary" [disabled]="loading()">
+                {{ loading() ? 'Adding...' : 'Add Webhook' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      }
+    
       <!-- Webhooks List -->
       <div class="webhooks-list">
-        <div class="card webhook-card" *ngFor="let webhook of webhooks()">
-          <div class="webhook-info">
-            <h4>{{ webhook.name }}</h4>
-            <p class="location" *ngIf="webhook.serverName || webhook.channelName">
-              {{ formatLocation(webhook.serverName, webhook.channelName) }}
-            </p>
-            <p class="webhook-url">{{ maskWebhookUrl(webhook.webhookUrl) }}</p>
-            <p class="created-at">Added {{ formatDate(webhook.createdAt) }}</p>
+        @for (webhook of webhooks(); track webhook) {
+          <div class="card webhook-card">
+            <div class="webhook-info">
+              <h4>{{ webhook.name }}</h4>
+              @if (webhook.serverName || webhook.channelName) {
+                <p class="location">
+                  {{ formatLocation(webhook.serverName, webhook.channelName) }}
+                </p>
+              }
+              <p class="webhook-url">{{ maskWebhookUrl(webhook.webhookUrl) }}</p>
+              <p class="created-at">Added {{ formatDate(webhook.createdAt) }}</p>
+            </div>
+            <div class="webhook-actions">
+              <button class="danger" (click)="deleteWebhook(webhook)" [disabled]="loading()">
+                Delete
+              </button>
+            </div>
           </div>
-          <div class="webhook-actions">
-            <button class="danger" (click)="deleteWebhook(webhook)" [disabled]="loading()">
-              Delete
-            </button>
+        }
+    
+        @if (webhooks().length === 0 && !loading()) {
+          <div class="empty-state">
+            <p>No webhooks configured yet.</p>
+            <p>Add a webhook to start uploading files to Discord.</p>
           </div>
-        </div>
-
-        <div class="empty-state" *ngIf="webhooks().length === 0 && !loading()">
-          <p>No webhooks configured yet.</p>
-          <p>Add a webhook to start uploading files to Discord.</p>
-        </div>
+        }
       </div>
     </div>
-  `,
+    `,
   styles: [`
     .page-header {
       display: flex;

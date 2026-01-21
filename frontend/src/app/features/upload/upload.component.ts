@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { HttpEventType } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -20,108 +20,130 @@ interface UploadItem {
 @Component({
   selector: 'app-upload',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   template: `
     <div class="container">
       <h2>Upload Files</h2>
-
+    
       <!-- Webhook Selection -->
-      <div class="card webhook-select" *ngIf="webhooks().length > 0">
-        <label for="webhook">Select Webhook</label>
-        <select id="webhook" [(ngModel)]="selectedWebhookId">
-          <option value="">Choose a webhook...</option>
-          <option *ngFor="let webhook of webhooks()" [value]="webhook.webhookId">
-            {{ webhook.name }} {{ webhook.channelName ? '(' + webhook.channelName + ')' : '' }}
-          </option>
-        </select>
-      </div>
-
-      <div class="no-webhooks card" *ngIf="webhooks().length === 0 && !loading()">
-        <p>No webhooks configured.</p>
-        <button class="primary" (click)="goToWebhooks()">Add Webhook</button>
-      </div>
-
-      <!-- Custom Message -->
-      <div class="card message-input" *ngIf="selectedWebhookId">
-        <label for="customMessage">Message (optional)</label>
-        <input
-          type="text"
-          id="customMessage"
-          [(ngModel)]="customMessage"
-          placeholder="Add a message to appear with your upload..."
-          maxlength="500"
-        />
-      </div>
-
-      <!-- Drop Zone -->
-      <div
-        class="drop-zone"
-        *ngIf="selectedWebhookId"
-        [class.drag-over]="isDragOver"
-        (dragover)="onDragOver($event)"
-        (dragleave)="onDragLeave($event)"
-        (drop)="onDrop($event)"
-        (click)="fileInput.click()"
-      >
-        <input
-          #fileInput
-          type="file"
-          multiple
-          accept="image/*,video/*"
-          (change)="onFileSelect($event)"
-          hidden
-        />
-        <div class="drop-zone-content">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          <p>Drag and drop files here, or click to select</p>
-          <span>Images and videos only</span>
+      @if (webhooks().length > 0) {
+        <div class="card webhook-select">
+          <label for="webhook">Select Webhook</label>
+          <select id="webhook" [(ngModel)]="selectedWebhookId">
+            <option value="">Choose a webhook...</option>
+            @for (webhook of webhooks(); track webhook) {
+              <option [value]="webhook.webhookId">
+                {{ webhook.name }} {{ webhook.channelName ? '(' + webhook.channelName + ')' : '' }}
+              </option>
+            }
+          </select>
         </div>
-      </div>
-
-      <!-- Upload Queue -->
-      <div class="upload-queue" *ngIf="uploadQueue().length > 0">
-        <h3>Upload Queue</h3>
-        <div class="queue-item" *ngFor="let item of uploadQueue(); let i = index">
-          <div class="file-preview">
-            <img *ngIf="item.previewUrl" [src]="item.previewUrl" alt="Preview" />
-            <div *ngIf="!item.previewUrl" class="video-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            </div>
-          </div>
-          <div class="file-info">
-            <span class="filename">{{ item.file.name }}</span>
-            <span class="filesize">{{ formatFileSize(item.file.size) }}</span>
-            <div class="progress-bar" *ngIf="item.status === 'uploading'">
-              <div class="progress" [style.width.%]="item.progress"></div>
-            </div>
-            <span class="status" [class]="item.status">
-              {{ item.status === 'complete' ? 'Uploaded' : item.status === 'error' ? item.error : '' }}
-            </span>
-          </div>
-          <button
-            class="remove-btn"
-            (click)="removeFromQueue(i)"
-            *ngIf="item.status === 'pending'"
+      }
+    
+      @if (webhooks().length === 0 && !loading()) {
+        <div class="no-webhooks card">
+          <p>No webhooks configured.</p>
+          <button class="primary" (click)="goToWebhooks()">Add Webhook</button>
+        </div>
+      }
+    
+      <!-- Custom Message -->
+      @if (selectedWebhookId) {
+        <div class="card message-input">
+          <label for="customMessage">Message (optional)</label>
+          <input
+            type="text"
+            id="customMessage"
+            [(ngModel)]="customMessage"
+            placeholder="Add a message to appear with your upload..."
+            maxlength="500"
+            />
+        </div>
+      }
+    
+      <!-- Drop Zone -->
+      @if (selectedWebhookId) {
+        <div
+          class="drop-zone"
+          [class.drag-over]="isDragOver"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDrop($event)"
+          (click)="fileInput.click()"
           >
-            X
+          <input
+            #fileInput
+            type="file"
+            multiple
+            accept="image/*,video/*"
+            (change)="onFileSelect($event)"
+            hidden
+            />
+          <div class="drop-zone-content">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <p>Drag and drop files here, or click to select</p>
+            <span>Images and videos only</span>
+          </div>
+        </div>
+      }
+    
+      <!-- Upload Queue -->
+      @if (uploadQueue().length > 0) {
+        <div class="upload-queue">
+          <h3>Upload Queue</h3>
+          @for (item of uploadQueue(); track item; let i = $index) {
+            <div class="queue-item">
+              <div class="file-preview">
+                @if (item.previewUrl) {
+                  <img [src]="item.previewUrl" alt="Preview" />
+                }
+                @if (!item.previewUrl) {
+                  <div class="video-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                  </div>
+                }
+              </div>
+              <div class="file-info">
+                <span class="filename">{{ item.file.name }}</span>
+                <span class="filesize">{{ formatFileSize(item.file.size) }}</span>
+                @if (item.status === 'uploading') {
+                  <div class="progress-bar">
+                    <div class="progress" [style.width.%]="item.progress"></div>
+                  </div>
+                }
+                <span class="status" [class]="item.status">
+                  {{ item.status === 'complete' ? 'Uploaded' : item.status === 'error' ? item.error : '' }}
+                </span>
+              </div>
+              @if (item.status === 'pending') {
+                <button
+                  class="remove-btn"
+                  (click)="removeFromQueue(i)"
+                  >
+                  X
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+    
+      <!-- Upload Button -->
+      @if (uploadQueue().length > 0 && hasQueuedItems()) {
+        <div class="upload-actions">
+          <button class="primary" (click)="uploadAll()" [disabled]="uploading()">
+            {{ uploading() ? 'Uploading...' : 'Upload All' }}
           </button>
         </div>
-      </div>
-
-      <!-- Upload Button -->
-      <div class="upload-actions" *ngIf="uploadQueue().length > 0 && hasQueuedItems()">
-        <button class="primary" (click)="uploadAll()" [disabled]="uploading()">
-          {{ uploading() ? 'Uploading...' : 'Upload All' }}
-        </button>
-      </div>
+      }
     </div>
-  `,
+    `,
   styles: [`
     h2 {
       margin-bottom: 24px;
