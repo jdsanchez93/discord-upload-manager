@@ -41,6 +41,18 @@ interface UploadItem {
         <button class="primary" (click)="goToWebhooks()">Add Webhook</button>
       </div>
 
+      <!-- Custom Message -->
+      <div class="card message-input" *ngIf="selectedWebhookId">
+        <label for="customMessage">Message (optional)</label>
+        <input
+          type="text"
+          id="customMessage"
+          [(ngModel)]="customMessage"
+          placeholder="Add a message to appear with your upload..."
+          maxlength="500"
+        />
+      </div>
+
       <!-- Drop Zone -->
       <div
         class="drop-zone"
@@ -147,6 +159,35 @@ interface UploadItem {
       p {
         margin-bottom: 16px;
         color: var(--text-secondary);
+      }
+    }
+
+    .message-input {
+      margin-bottom: 24px;
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+      }
+
+      input {
+        width: 100%;
+        padding: 10px 12px;
+        background-color: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        color: var(--text-primary);
+        font-size: 14px;
+
+        &:focus {
+          outline: none;
+          border-color: var(--primary-color);
+        }
+
+        &::placeholder {
+          color: var(--text-secondary);
+        }
       }
     }
 
@@ -296,6 +337,7 @@ export class UploadComponent implements OnInit {
   loading = signal(false);
   uploading = signal(false);
   selectedWebhookId = '';
+  customMessage = '';
   isDragOver = false;
 
   ngOnInit() {
@@ -401,7 +443,8 @@ export class UploadComponent implements OnInit {
           await this.multipartUpload.upload(
             item.file,
             this.selectedWebhookId,
-            updateProgress
+            updateProgress,
+            this.customMessage || undefined
           );
         } else {
           // Use single PUT upload for small files
@@ -411,6 +454,7 @@ export class UploadComponent implements OnInit {
               webhookId: this.selectedWebhookId,
               contentType: item.file.type || 'application/octet-stream',
               size: item.file.size,
+              customMessage: this.customMessage || undefined,
             })
           );
 

@@ -81,6 +81,7 @@ export async function createUploadUrl(
     size: request.size,
     createdAt,
     cloudFrontUrl: `https://${cloudFrontDomain}/${s3Key}`,
+    ...(request.customMessage && { customMessage: request.customMessage }),
   };
 
   await docClient.send(

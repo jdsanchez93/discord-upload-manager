@@ -19,6 +19,7 @@ interface FileRecord {
   size: number;
   status: string;
   createdAt: string;
+  customMessage?: string;
 }
 
 interface WebhookRecord {
@@ -77,7 +78,7 @@ export const handler: S3Handler = async (event: S3Event) => {
       const cloudFrontUrl = `https://${CLOUDFRONT_DOMAIN}/${key}`;
 
       // Execute Discord webhook with wait=true
-      const discordResponse = await executeDiscordWebhook(webhook.webhookUrl, cloudFrontUrl, fileRecord.filename);
+      const discordResponse = await executeDiscordWebhook(webhook.webhookUrl, cloudFrontUrl, fileRecord.filename, fileRecord.customMessage);
 
       if (discordResponse) {
         // Update file record with Discord message ID
@@ -126,11 +127,15 @@ async function getWebhook(userId: string, webhookId: string): Promise<WebhookRec
 async function executeDiscordWebhook(
   webhookUrl: string,
   fileUrl: string,
-  filename: string
+  filename: string,
+  customMessage?: string
 ): Promise<DiscordWebhookResponse | null> {
   try {
     // Add wait=true to get the message ID back
     const urlWithWait = `${webhookUrl}?wait=true`;
+
+    const maskedLink = `[${filename}](${fileUrl})`;
+    const content = customMessage ? `${customMessage}\n${maskedLink}` : maskedLink;
 
     const response = await fetch(urlWithWait, {
       method: 'POST',
@@ -138,7 +143,7 @@ async function executeDiscordWebhook(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        content: fileUrl,
+        content,
         // Discord will automatically embed the image/video from the URL
       }),
     });
