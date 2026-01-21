@@ -27,7 +27,8 @@ export class MultipartUploadService {
   async upload(
     file: File,
     webhookId: string,
-    onProgress: (progress: number) => void
+    onProgress: (progress: number) => void,
+    customMessage?: string
   ): Promise<void> {
     // 1. Initiate multipart upload
     const initResponse = await firstValueFrom(
@@ -36,6 +37,7 @@ export class MultipartUploadService {
         webhookId,
         contentType: file.type || 'application/octet-stream',
         size: file.size,
+        customMessage,
       })
     );
 
