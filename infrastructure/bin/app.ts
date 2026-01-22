@@ -2,6 +2,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { StorageStack } from '../lib/storage-stack';
 import { AppStack } from '../lib/app-stack';
+import { PermissionStack } from '../lib/permission-stack';
 
 const app = new cdk.App();
 
@@ -47,6 +48,16 @@ new cdk.CfnOutput(storageStack, 'CloudFrontDomain', {
   value: storageStack.filesDistributionDomain,
   description: 'CloudFront domain for file access',
 });
+
+// Permission Stack - developer IAM policies (dev only)
+if (stage === 'dev') {
+  new PermissionStack(app, `${Stage}-PermissionStack`, {
+    env,
+    filesTable: storageStack.filesTable,
+    webhooksTable: storageStack.webhooksTable,
+    uploadBucket: storageStack.uploadBucket,
+  });
+}
 
 // App Stack - combined frontend + API (prod only)
 if (stage === 'prod') {
