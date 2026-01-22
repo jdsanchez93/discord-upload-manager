@@ -100,6 +100,43 @@ npm start
 
 The Angular dev server proxies `/api/*` requests to the local Hono server.
 
+## Developer Onboarding (AWS Credentials)
+
+The dev stack creates an IAM Managed Policy (`LocalDevPolicyArn` output) with permissions for DynamoDB and S3 access. This policy can be attached to an IAM Identity Center permission set for team access.
+
+### Admin Setup (One-time)
+
+After deploying the dev stack:
+
+1. Note the `LocalDevPolicyArn` from the CDK output
+2. In IAM Identity Center console:
+   - Create a permission set (e.g., "DevApiLocal")
+   - Attach the managed policy using its ARN
+   - Assign to developer users/groups
+
+### Developer Setup
+
+1. Configure AWS CLI SSO:
+   ```bash
+   aws configure sso
+   # SSO session name: discord-upload-dev
+   # SSO start URL: https://<org>.awsapps.com/start
+   # SSO region: us-east-1
+   # Choose the account and permission set
+   # CLI profile name: discord-upload-dev
+   ```
+
+2. Update `api/.env`:
+   ```
+   AWS_PROFILE=discord-upload-dev
+   ```
+
+3. Login and run:
+   ```bash
+   aws sso login --profile discord-upload-dev
+   cd api && npm run dev
+   ```
+
 ## CDK Stages
 
 The infrastructure supports two stages:
