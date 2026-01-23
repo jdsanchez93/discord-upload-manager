@@ -45,7 +45,7 @@ export class AppStack extends cdk.Stack {
 
     // TypeScript + Hono Lambda function for API
     this.apiFunction = new lambdaNodejs.NodejsFunction(this, 'ApiFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       entry: path.join(__dirname, '../../api/src/lambda.ts'),
       handler: 'handler',
       memorySize: 512,
