@@ -16,9 +16,9 @@ async function getJwks(): Promise<jose.JWTVerifyGetKey> {
 }
 
 export async function validateToken(token: string): Promise<string | null> {
-  // Skip auth in development if not configured
   if (!auth0Domain || !auth0Audience) {
-    return 'dev-user-123';
+    console.error('AUTH0_DOMAIN and AUTH0_AUDIENCE must be configured');
+    return null;
   }
 
   try {
@@ -45,11 +45,6 @@ export const authMiddleware: MiddlewareHandler = async (c, next) => {
   const authHeader = c.req.header('Authorization');
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    // Check if auth is disabled for dev
-    if (!auth0Domain || !auth0Audience) {
-      c.set('userId', 'dev-user-123');
-      return next();
-    }
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
