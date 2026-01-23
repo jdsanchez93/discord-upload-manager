@@ -128,7 +128,7 @@ export class StorageStack extends cdk.Stack {
 
     // Webhook executor Lambda (triggered by S3 uploads)
     this.webhookFunction = new lambdaNodejs.NodejsFunction(this, 'WebhookFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       entry: path.join(__dirname, '../../lambdas/webhook-executor/src/index.ts'),
       handler: 'handler',
       memorySize: 256,

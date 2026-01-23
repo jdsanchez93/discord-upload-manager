@@ -155,7 +155,7 @@ The infrastructure supports two stages:
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - AWS CLI configured with appropriate profile
 - Angular CLI (`npm install -g @angular/cli`)
 
